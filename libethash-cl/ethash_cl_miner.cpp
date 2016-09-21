@@ -201,8 +201,8 @@ bool ethash_cl_miner::configureGPU(
 	uint64_t _currentBlock
 )
 {
-	s_workgroupSize = _localWorkSize[0];
-	s_initialGlobalWorkSize = _globalWorkSize[0];
+	s_workgroupSize = _localWorkSize;
+	s_initialGlobalWorkSize = _globalWorkSize;
 	s_allowCPU = _allowCPU;
 	s_extraRequiredGPUMem = _extraGPUMemory;
 
@@ -234,8 +234,10 @@ bool ethash_cl_miner::configureGPU(
 
 bool ethash_cl_miner::s_allowCPU = false;
 unsigned ethash_cl_miner::s_extraRequiredGPUMem;
-unsigned ethash_cl_miner::s_workgroupSize = ethash_cl_miner::c_defaultLocalWorkSize;
-unsigned ethash_cl_miner::s_initialGlobalWorkSize = ethash_cl_miner::c_defaultGlobalWorkSizeMultiplier * ethash_cl_miner::c_defaultLocalWorkSize;
+//unsigned ethash_cl_miner::s_workgroupSize = ethash_cl_miner::c_defaultLocalWorkSize;
+//unsigned ethash_cl_miner::s_initialGlobalWorkSize = ethash_cl_miner::c_defaultGlobalWorkSizeMultiplier * ethash_cl_miner::c_defaultLocalWorkSize;
+unsigned *ethash_cl_miner::s_workgroupSize = nullptr;
+unsigned *ethash_cl_miner::s_initialGlobalWorkSize = nullptr;
 
 bool ethash_cl_miner::searchForAllDevices(function<bool(cl::Device const&)> _callback)
 {
@@ -335,6 +337,7 @@ bool ethash_cl_miner::init(
 	void** hostDAG
 )
 {
+	m_device_id = _deviceId;
 	// get all platforms
 	try
 	{
@@ -399,9 +402,9 @@ bool ethash_cl_miner::init(
 		m_queue = cl::CommandQueue(m_context, device);
 
 		// make sure that global work size is evenly divisible by the local workgroup size
-		m_globalWorkSize = s_initialGlobalWorkSize;
-		if (m_globalWorkSize % s_workgroupSize != 0)
-			m_globalWorkSize = ((m_globalWorkSize / s_workgroupSize) + 1) * s_workgroupSize;
+		m_globalWorkSize = s_initialGlobalWorkSize[_deviceId];
+		if (m_globalWorkSize % s_workgroupSize[_deviceId] != 0)
+			m_globalWorkSize = ((m_globalWorkSize / s_workgroupSize[_deviceId]) + 1) * s_workgroupSize[_deviceId];
 
 		uint64_t dagSize = ethash_get_datasize(_light->block_number);
 		uint32_t dagSize128 = (unsigned)(dagSize / ETHASH_MIX_BYTES);
@@ -411,7 +414,7 @@ bool ethash_cl_miner::init(
 		// note: ETHASH_CL_MINER_KERNEL is simply ethash_cl_miner_kernel.cl compiled
 		// into a byte array by bin2h.cmake. There is no need to load the file by hand in runtime
 		string code(ETHASH_CL_MINER_KERNEL, ETHASH_CL_MINER_KERNEL + ETHASH_CL_MINER_KERNEL_SIZE);
-		addDefinition(code, "GROUP_SIZE", s_workgroupSize);
+		addDefinition(code, "GROUP_SIZE", s_workgroupSize[_deviceId]);
 		addDefinition(code, "DAG_SIZE", dagSize128);
 		addDefinition(code, "LIGHT_SIZE", lightSize64);
 		addDefinition(code, "ACCESSES", ETHASH_ACCESSES);
@@ -495,7 +498,7 @@ bool ethash_cl_miner::init(
 			for (uint32_t i = 0; i < fullRuns; i++)
 			{
 				m_dagKernel.setArg(0, i * m_globalWorkSize);
-				m_queue.enqueueNDRangeKernel(m_dagKernel, cl::NullRange, m_globalWorkSize, s_workgroupSize);
+				m_queue.enqueueNDRangeKernel(m_dagKernel, cl::NullRange, m_globalWorkSize, s_workgroupSize[_deviceId]);
 				m_queue.finish();
 				printf("Generate DAG device OPENCL#%d: %.0f%%\n", _deviceId, 100.0f * (float)i / (float)fullRuns);
 			}
@@ -573,7 +576,7 @@ void ethash_cl_miner::search(uint8_t const* header, uint64_t target, search_hook
 			m_searchKernel.setArg(3, start_nonce);
 
 			// execute it!
-			m_queue.enqueueNDRangeKernel(m_searchKernel, cl::NullRange, m_globalWorkSize, s_workgroupSize);
+			m_queue.enqueueNDRangeKernel(m_searchKernel, cl::NullRange, m_globalWorkSize, s_workgroupSize[m_device_id]);
 
 			pending.push({ start_nonce, buf });
 			buf = (buf + 1) % c_bufferCount;

@@ -281,8 +281,16 @@ public:
 				std::vector<std::string> strs;
 				boost::split(strs, argv[++i], boost::is_any_of(","));
 				int i = 0;
-				for (std::vector<std::string>::iterator it = strs.begin(); it != strs.end() && i != 16; ++it, ++i)
-					m_globalWorkSizeMultiplier[i] = stol(*it);
+				for (std::vector<std::string>::iterator it = strs.begin(); it != strs.end() && i != 16; ++it, ++i) {
+					unsigned a = stol(*it);
+					if (a > 0) {
+						m_globalWorkSizeMultiplier[i] = a;
+					}
+					else if (a == 0 && arg == "--cl-global-work") { // cuda set derfault
+						// set default here
+						m_globalWorkSizeMultiplier[i] = ethash_cl_miner::c_defaultGlobalWorkSizeMultiplier;
+					}
+				}
 			}
 			catch (...)
 			{
@@ -294,8 +302,16 @@ public:
 				std::vector<std::string> strs;
 				boost::split(strs, argv[++i], boost::is_any_of(","));
 				int i = 0;
-				for (std::vector<std::string>::iterator it = strs.begin(); it != strs.end() && i != 16; ++it, ++i)
-					m_localWorkSize[i] = stol(*it);
+				for (std::vector<std::string>::iterator it = strs.begin(); it != strs.end() && i != 16; ++it, ++i) {
+					unsigned a = stol(*it);
+					if (a > 0) {
+						m_localWorkSize[i] = a;
+					}
+					else if (a == 0 && arg == "--cl-local-work") { // cuda set derfault
+						// set default here
+						m_localWorkSize[i] = ethash_cl_miner::c_defaultLocalWorkSize;
+					}
+				}
 			}
 			catch (...)
 			{

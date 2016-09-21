@@ -85,10 +85,14 @@ private:
 	unsigned m_globalWorkSize;
 	bool m_openclOnePointOne;
 
+	unsigned m_device_id;
+
 	/// The local work size for the search
-	static unsigned s_workgroupSize;
+	// now it is not per group but per device
+	static unsigned *s_workgroupSize; 
 	/// The initial global work size for the searches
-	static unsigned s_initialGlobalWorkSize;
+	// now it is not per group but per device
+	static unsigned *s_initialGlobalWorkSize;
 	/// The target milliseconds per batch for the search. If 0, then no adjustment will happen
 	static unsigned s_msPerBatch;
 	/// Allow CPU to appear as an OpenCL device or not. Default is false
