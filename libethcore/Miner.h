@@ -222,8 +222,9 @@ protected:
 	static unsigned s_dagLoadMode;
 	static volatile unsigned s_dagLoadIndex;
 	static unsigned s_dagCreateDevice;
-	static volatile void* s_dagInHostMemory;
+	static void* s_dagInHostMemory;
 	static h256* s_dagSeed;
+	static SharedMutex s_dagMutex;
 private:
 	FarmFace* m_farm = nullptr;
 	unsigned m_index;

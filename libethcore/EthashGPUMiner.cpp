@@ -173,17 +173,6 @@ void EthashGPUMiner::workLoop()
 					while (s_dagSeed == nullptr || *s_dagSeed != w.seedHash)
 						this_thread::sleep_for(chrono::seconds(1));
 				}
-				else
-				{
-					// free DAG if already existing
-					if (s_dagInHostMemory && *s_dagSeed != w.seedHash)
-					{
-						delete[] s_dagInHostMemory;
-						s_dagInHostMemory = nullptr;
-
-						cout << "Freeing DAG from host" << endl;
-					}
-				}
 			}
 
 			cnote << "Initialising miner...";
@@ -196,13 +185,62 @@ void EthashGPUMiner::workLoop()
 			light = EthashAux::light(w.seedHash);
 			bytesConstRef lightData = light->data();
 
-			m_miner->init(light->light, 
-				lightData.data(), 
-				lightData.size(), 
-				s_platformId,  
-				device,
-				(s_dagLoadMode == DAG_LOAD_MODE_SINGLE || s_dagLoadMode == DAG_LOAD_MODE_SINGLE_KEEP),
-				&s_dagInHostMemory);
+			if (s_dagLoadMode == DAG_LOAD_MODE_SINGLE_KEEP)
+			{
+				if (device == s_dagCreateDevice)
+				{
+					WriteGuard* l = new WriteGuard(s_dagMutex);
+					if (s_dagInHostMemory && *s_dagSeed != w.seedHash)
+					{
+						cout << "Freeing DAG from host" << endl;
+						delete[] s_dagInHostMemory;
+						//CUDA_SAFE_CALL(cudaFreeHost((void*)s_dagInHostMemory));
+						s_dagInHostMemory = nullptr;
+					}
+
+					cout << "Generating DAG seed " << w.seedHash << endl;
+
+					// need to generate DAG and copy to host
+					m_miner->init(light->light,
+						lightData.data(),
+						lightData.size(),
+						s_platformId,
+						device,
+						true,
+						&s_dagInHostMemory);
+
+					// DAG created and loaded on host, set dagSeed
+					h256* tmp = s_dagSeed;
+					s_dagSeed = new h256(w.seedHash);
+					if (tmp != nullptr)
+						delete tmp;
+
+					delete l;
+				}
+				else
+				{
+					// only need to copy DAG from the host
+					ReadGuard* l = new ReadGuard(s_dagMutex);
+					m_miner->init(light->light,
+						lightData.data(),
+						lightData.size(),
+						s_platformId,
+						device,
+						true,
+						&s_dagInHostMemory);
+					delete l;
+				}
+			}
+			else
+			{
+				m_miner->init(light->light,
+					lightData.data(),
+					lightData.size(),
+					s_platformId,
+					device,
+					s_dagLoadMode == DAG_LOAD_MODE_SINGLE,
+					&s_dagInHostMemory);
+			}
 			s_dagLoadIndex++;
 
 			if (s_dagLoadMode == DAG_LOAD_MODE_SINGLE)
@@ -214,17 +252,6 @@ void EthashGPUMiner::workLoop()
 					s_dagInHostMemory = nullptr;
 
 					cout << "Freeing DAG from host" << endl;
-				}
-			}
-			else if (s_dagLoadMode == DAG_LOAD_MODE_SINGLE_KEEP)
-			{
-				if (device == s_dagCreateDevice)
-				{
-					// DAG created and loaded on host, set dagSeed
-					h256* tmp = s_dagSeed;
-					s_dagSeed = new h256(w.seedHash);
-					if (tmp != nullptr)
-						delete tmp;
 				}
 			}
 		}

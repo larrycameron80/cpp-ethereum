@@ -58,7 +58,7 @@ public:
 		unsigned _platformId,
 		unsigned _deviceId,
 		bool _cpyToHost, 
-		volatile void** hostDAG
+		void** hostDAG
 		);
 	void finish();
 	void search(uint8_t const* _header, uint64_t _target, search_hook& _hook, bool _ethStratum, uint64_t _startN);

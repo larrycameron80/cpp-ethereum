@@ -332,7 +332,7 @@ bool ethash_cl_miner::init(
 	unsigned _platformId,
 	unsigned _deviceId, 
 	bool _cpyToHost, 
-	volatile void** hostDAG
+	void** hostDAG
 )
 {
 	// get all platforms
