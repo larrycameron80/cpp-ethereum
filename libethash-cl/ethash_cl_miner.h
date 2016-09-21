@@ -44,8 +44,8 @@ public:
 	static void listDevices();
 	static bool configureGPU(
 		unsigned _platformId,
-		unsigned _localWorkSize,
-		unsigned _globalWorkSize,
+		unsigned * _localWorkSize,
+		unsigned * _globalWorkSize,
 		bool _allowCPU,
 		unsigned _extraGPUMemory,
 		uint64_t _currentBlock

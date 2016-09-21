@@ -110,7 +110,14 @@ public:
 		Stratum
 	};
 
-	MinerCLI(OperationMode _mode = OperationMode::None): mode(_mode) {}
+	MinerCLI(OperationMode _mode = OperationMode::None): mode(_mode) 
+	{
+		for (int i = 0; i != 16; ++i)
+		{
+			m_globalWorkSizeMultiplier[i] = ethash_cuda_miner::c_defaultGridSize;
+			m_localWorkSize[i] = ethash_cuda_miner::c_defaultBlockSize;
+		}
+	}
 
 	bool interpretOption(int& i, int argc, char** argv)
 	{
@@ -271,7 +278,11 @@ public:
 #if ETH_ETHASHCL || ETH_ETHASHCUDA || !ETH_TRUE
 		else if ((arg == "--cl-global-work" || arg == "--cuda-grid-size")  && i + 1 < argc)
 			try {
-				m_globalWorkSizeMultiplier = stol(argv[++i]);
+				std::vector<std::string> strs;
+				boost::split(strs, argv[++i], boost::is_any_of(","));
+				int i = 0;
+				for (std::vector<std::string>::iterator it = strs.begin(); it != strs.end() && i != 16; ++it, ++i)
+					m_globalWorkSizeMultiplier[i] = stol(*it);
 			}
 			catch (...)
 			{
@@ -280,7 +291,11 @@ public:
 			}
 		else if ((arg == "--cl-local-work" || arg == "--cuda-block-size") && i + 1 < argc)
 			try {
-				m_localWorkSize = stol(argv[++i]);
+				std::vector<std::string> strs;
+				boost::split(strs, argv[++i], boost::is_any_of(","));
+				int i = 0;
+				for (std::vector<std::string>::iterator it = strs.begin(); it != strs.end() && i != 16; ++it, ++i)
+					m_localWorkSize[i] = stol(*it);
 			}
 			catch (...)
 			{
@@ -1200,8 +1215,8 @@ private:
 #endif
 #endif
 #if ETH_ETHASHCUDA || !ETH_TRUE
-	unsigned m_globalWorkSizeMultiplier = ethash_cuda_miner::c_defaultGridSize;
-	unsigned m_localWorkSize = ethash_cuda_miner::c_defaultBlockSize;
+	unsigned m_globalWorkSizeMultiplier[16];
+	unsigned m_localWorkSize[16];
 	unsigned m_cudaDeviceCount = 0;
 	unsigned m_cudaDevices[16];
 	unsigned m_numStreams = ethash_cuda_miner::c_defaultNumStreams;

@@ -48,8 +48,8 @@ namespace eth
 		static unsigned getNumDevices();
 		static void listDevices();
 		static bool configureGPU(
-			unsigned _blockSize,
-			unsigned _gridSize,
+			unsigned * _blockSize,
+			unsigned * _gridSize,
 			unsigned _numStreams,
 			unsigned _extraGPUMemory,
 			unsigned _scheduleFlag,

@@ -46,8 +46,8 @@ public:
 	static unsigned getNumDevices();
 	static void listDevices();
 	static bool configureGPU(
-		unsigned _localWorkSize,
-		unsigned _globalWorkSizeMultiplier,
+		unsigned * _localWorkSize,
+		unsigned * _globalWorkSizeMultiplier,
 		unsigned _platformId,
 		unsigned _deviceId,
 		bool _allowCPU,

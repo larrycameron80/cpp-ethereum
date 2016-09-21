@@ -28,8 +28,8 @@ public:
 	static void listDevices();
 	static bool configureGPU(
 		int *	 _devices,
-		unsigned _blockSize,
-		unsigned _gridSize,
+		unsigned * _blockSize,
+		unsigned * _gridSize,
 		unsigned _numStreams,
 		unsigned _extraGPUMemory,
 		unsigned _scheduleFlag,
@@ -64,9 +64,9 @@ private:
 	int m_device;
 
 	/// The local work size for the search
-	static unsigned s_blockSize;
+	static unsigned * s_blockSize;
 	/// The initial global work size for the searches
-	static unsigned s_gridSize;
+	static unsigned * s_gridSize;
 	/// The number of CUDA streams
 	static unsigned s_numStreams;
 	/// CUDA schedule flag

@@ -194,15 +194,15 @@ unsigned ethash_cl_miner::getNumDevices(unsigned _platformId)
 
 bool ethash_cl_miner::configureGPU(
 	unsigned _platformId,
-	unsigned _localWorkSize,
-	unsigned _globalWorkSize,
+	unsigned * _localWorkSize,
+	unsigned * _globalWorkSize,
 	bool _allowCPU,
 	unsigned _extraGPUMemory,
 	uint64_t _currentBlock
 )
 {
-	s_workgroupSize = _localWorkSize;
-	s_initialGlobalWorkSize = _globalWorkSize;
+	s_workgroupSize = _localWorkSize[0];
+	s_initialGlobalWorkSize = _globalWorkSize[0];
 	s_allowCPU = _allowCPU;
 	s_extraRequiredGPUMem = _extraGPUMemory;
 

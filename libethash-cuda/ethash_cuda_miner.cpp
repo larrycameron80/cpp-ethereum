@@ -115,8 +115,8 @@ unsigned ethash_cuda_miner::getNumDevices()
 
 bool ethash_cuda_miner::configureGPU(
 	int *	 _devices,
-	unsigned _blockSize,
-	unsigned _gridSize,
+	unsigned * _blockSize,
+	unsigned * _gridSize,
 	unsigned _numStreams,
 	unsigned _extraGPUMemory,
 	unsigned _scheduleFlag,
@@ -131,9 +131,9 @@ bool ethash_cuda_miner::configureGPU(
 		s_numStreams = _numStreams;
 		s_scheduleFlag = _scheduleFlag;
 
-		ETHCUDA_LOG(
+		/*ETHCUDA_LOG(
 			"Using grid size " << s_gridSize << ", block size " << s_blockSize << endl
-			);
+			);*/
 
 		// by default let's only consider the DAG of the first epoch
 		uint64_t dagSize = ethash_get_datasize(_currentBlock);
@@ -174,8 +174,10 @@ bool ethash_cuda_miner::configureGPU(
 }
 
 unsigned ethash_cuda_miner::s_extraRequiredGPUMem;
-unsigned ethash_cuda_miner::s_blockSize = ethash_cuda_miner::c_defaultBlockSize;
-unsigned ethash_cuda_miner::s_gridSize = ethash_cuda_miner::c_defaultGridSize;
+//unsigned ethash_cuda_miner::s_blockSize = ethash_cuda_miner::c_defaultBlockSize;
+unsigned * ethash_cuda_miner::s_blockSize;
+//unsigned ethash_cuda_miner::s_gridSize = ethash_cuda_miner::c_defaultGridSize;
+unsigned * ethash_cuda_miner::s_gridSize;
 unsigned ethash_cuda_miner::s_numStreams = ethash_cuda_miner::c_defaultNumStreams;
 unsigned ethash_cuda_miner::s_scheduleFlag = 0;
 
@@ -222,7 +224,7 @@ bool ethash_cuda_miner::init(ethash_light_t _light, uint8_t const* _lightData, u
 		cudaDeviceProp device_props;
 		CUDA_SAFE_CALL(cudaGetDeviceProperties(&device_props, m_device));
 
-		cout << "Using device: " << device_props.name << " (Compute " << device_props.major << "." << device_props.minor << ")" << endl;
+		cout << "Using device: " << device_props.name << " (Compute " << device_props.major << "." << device_props.minor << ") THREADS=" << s_blockSize[m_device] << " BLOCKS=" << s_gridSize[m_device] << endl;
 
 		CUDA_SAFE_CALL(cudaSetDevice(m_device));
 		CUDA_SAFE_CALL(cudaDeviceReset());
@@ -262,12 +264,12 @@ bool ethash_cuda_miner::init(ethash_light_t _light, uint8_t const* _lightData, u
 		m_current_nonce = 0;
 		m_current_index = 0;
 
-		m_sharedBytes = device_props.major * 100 < SHUFFLE_MIN_VER ? (64 * s_blockSize) / 8 : 0 ;
+		m_sharedBytes = device_props.major * 100 < SHUFFLE_MIN_VER ? (64 * s_blockSize[m_device]) / 8 : 0;
 
 		if (!*hostDAG)
 		{
 			cout << "Generating DAG for GPU #" << m_device << endl;
-			ethash_generate_dag(dagSize, s_gridSize, s_blockSize, m_streams[0], m_device);
+			ethash_generate_dag(dagSize, s_gridSize[m_device], s_blockSize[m_device], m_streams[0], m_device);
 
 			if (_cpyToHost)
 			{
@@ -341,7 +343,7 @@ void ethash_cuda_miner::search(uint8_t const* header, uint64_t target, search_ho
 				m_search_buf[i][0] = 0;
 		}
 	}
-	uint64_t batch_size = s_gridSize * s_blockSize;
+	uint64_t batch_size = s_gridSize[m_device] * s_blockSize[m_device];
 	for (; !exit; m_current_index++, m_current_nonce += batch_size)
 	{
 		unsigned int stream_index = m_current_index % s_numStreams;
@@ -359,7 +361,7 @@ void ethash_cuda_miner::search(uint8_t const* header, uint64_t target, search_ho
 			for (unsigned int j = 0; j < found_count; j++)
 				nonces[j] = nonce_base + buffer[j + 1];
 		}
-		run_ethash_search(s_gridSize, s_blockSize, m_sharedBytes, stream, buffer, m_current_nonce);
+		run_ethash_search(s_gridSize[m_device], s_blockSize[m_device], m_sharedBytes, stream, buffer, m_current_nonce);
 		if (m_current_index >= s_numStreams)
 		{
 			exit = found_count && hook.found(nonces, found_count);

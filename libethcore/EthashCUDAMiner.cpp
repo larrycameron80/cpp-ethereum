@@ -293,8 +293,8 @@ void EthashCUDAMiner::listDevices()
 }
 
 bool EthashCUDAMiner::configureGPU(
-	unsigned _blockSize,
-	unsigned _gridSize,
+	unsigned * _blockSize,
+	unsigned * _gridSize,
 	unsigned _numStreams,
 	unsigned _extraGPUMemory,
 	unsigned _scheduleFlag,
@@ -305,7 +305,9 @@ bool EthashCUDAMiner::configureGPU(
 {
 	s_dagLoadMode = _dagLoadMode;
 	s_dagCreateDevice = _dagCreateDevice;
-	_blockSize = ((_blockSize + 7) / 8) * 8;
+
+	for (int i = 0; i != 16; ++i)
+		_blockSize[i] = ((_blockSize[i] + 7) / 8) * 8;
 
 	if (!ethash_cuda_miner::configureGPU(
 		s_devices,

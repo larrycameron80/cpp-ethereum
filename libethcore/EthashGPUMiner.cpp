@@ -292,8 +292,8 @@ void EthashGPUMiner::listDevices()
 }
 
 bool EthashGPUMiner::configureGPU(
-	unsigned _localWorkSize,
-	unsigned _globalWorkSizeMultiplier,
+	unsigned * _localWorkSize,
+	unsigned * _globalWorkSizeMultiplier,
 	unsigned _platformId,
 	unsigned _deviceId,
 	bool _allowCPU,
@@ -309,12 +309,16 @@ bool EthashGPUMiner::configureGPU(
 	s_platformId = _platformId;
 	s_deviceId = _deviceId;
 
-	_localWorkSize = ((_localWorkSize + 7) / 8) * 8;
+	for (int i = 0; i != 16; ++i)
+	{
+		_localWorkSize[i] = ((_localWorkSize[i] + 7) / 8) * 8;
+		_globalWorkSizeMultiplier[i] *= _localWorkSize[i];
+	}
 
 	if (!ethash_cl_miner::configureGPU(
 			_platformId,
 			_localWorkSize,
-			_globalWorkSizeMultiplier * _localWorkSize,
+			_globalWorkSizeMultiplier,
 			_allowCPU,
 			_extraGPUMemory,
 			_currentBlock
