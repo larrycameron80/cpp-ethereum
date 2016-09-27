@@ -29,7 +29,8 @@ static void diffToTarget(uint32_t *target, double diff)
 
 EthStratumClientV2::EthStratumClientV2(GenericFarm<EthashProofOfWork> * f, MinerType m, string const & host, string const & port, string const & user, string const & pass, int const & retries, int const & worktimeout, bool ethstratum)
 	: Worker("stratum"), 
-	  m_socket(m_io_service)
+	  m_socket(m_io_service),
+	  m_worktimer(m_io_service, boost::posix_time::milliseconds(0))
 {
 	m_minerType = m;
 	m_primary.host = host;
@@ -47,7 +48,6 @@ EthStratumClientV2::EthStratumClientV2(GenericFarm<EthashProofOfWork> * f, Miner
 	m_ethereumStratum = ethstratum;
 
 	p_farm = f;
-	p_worktimer = nullptr;
 	startWorking();
 }
 
@@ -88,6 +88,7 @@ void EthStratumClientV2::workLoop()
 
 			if (response.front() == '{' && response.back() == '}')
 			{
+				cdebug << "received: " << response;
 				Json::Value responseObject;
 				Json::Reader reader;
 				if (reader.parse(response.c_str(), responseObject))
@@ -138,6 +139,9 @@ void EthStratumClientV2::connect()
 	{
 		cnote << "Connected!";
 		m_connected = true;
+		boost::asio::socket_base::keep_alive option_ka(true);
+		m_socket.set_option(option_ka);
+
 		if (!p_farm->isMining())
 		{
 			cnote << "Starting farm";
@@ -163,10 +167,7 @@ void EthStratumClientV2::connect()
 
 void EthStratumClientV2::reconnect()
 {
-	if (p_worktimer) {
-		p_worktimer->cancel();
-		p_worktimer = nullptr;
-	}
+	m_worktimer.cancel();
 
 	//m_io_service.reset();
 	//m_socket.close(); // leads to crashes on Linux
@@ -226,7 +227,7 @@ void EthStratumClientV2::processExtranonce(std::string& enonce)
 void EthStratumClientV2::processReponse(Json::Value& responseObject)
 {
 	Json::Value error = responseObject.get("error", new Json::Value);
-	if (error.isArray())
+	if (error.size())
 	{
 		string msg = error.get(1, "Unknown error").asString();
 		cnote << msg;
@@ -234,6 +235,7 @@ void EthStratumClientV2::processReponse(Json::Value& responseObject)
 	std::ostream os(&m_requestBuffer);
 	Json::Value params;
 	int id = responseObject.get("id", Json::Value::null).asInt();
+	long responseTime = 0;
 	switch (id)
 	{
 	case 1:
@@ -270,13 +272,17 @@ void EthStratumClientV2::processReponse(Json::Value& responseObject)
 		cnote << "Authorized worker " << p_active->user;
 		break;
 	case 4:
+	case 6:
+		// id 6 == stale submit
+		responseTime = m_worktimeout - m_worktimer.expires_from_now().total_milliseconds();
+		//m_worktimer.cancel();
 		if (responseObject.get("result", false).asBool()) {
-			cnote << "B-) Submitted and accepted.";
-			p_farm->acceptedSolution(m_stale);
+			cnote << "B-) Submitted and accepted in" << responseTime << "ms.";
+			p_farm->acceptedSolution(id == 6);
 		}
 		else {
-			cwarn << ":-( Not accepted.";
-			p_farm->rejectedSolution(m_stale);
+			cwarn << ":-( Rejected in" << responseTime << "ms.";
+			p_farm->rejectedSolution(id == 6);
 		}
 		break;
 	default:
@@ -397,8 +403,9 @@ void EthStratumClientV2::processReponse(Json::Value& responseObject)
 }
 
 void EthStratumClientV2::work_timeout_handler(const boost::system::error_code& ec) {
+	cnote << "work_timeout_handler";
 	if (!ec) {
-		cnote << "No new work received in" << m_worktimeout << "seconds.";
+		cnote << "No share response received in" << m_worktimeout << "milliseconds.";
 		reconnect();
 	}
 }

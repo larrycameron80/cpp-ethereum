@@ -79,7 +79,7 @@ private:
 	boost::asio::streambuf m_requestBuffer;
 	boost::asio::streambuf m_responseBuffer;
 
-	boost::asio::deadline_timer * p_worktimer;
+	boost::asio::deadline_timer  m_worktimer;
 
 	bool m_ethereumStratum;
 

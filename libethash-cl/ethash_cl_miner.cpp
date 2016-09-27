@@ -327,6 +327,7 @@ void ethash_cl_miner::finish()
 		m_queue.finish();
 }
 
+
 bool ethash_cl_miner::init(
 	ethash_light_t _light, 
 	uint8_t const* _lightData, 
