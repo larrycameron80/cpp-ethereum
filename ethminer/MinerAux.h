@@ -436,6 +436,20 @@ public:
 		{
 			m_minerType = MinerType::Mixed;
 		}
+		else if ((arg == "-D" || arg == "--create-dag") && i + 1 < argc)
+		{
+			string m = boost::to_lower_copy(string(argv[++i]));
+			mode = OperationMode::DAGInit;
+			try
+			{
+				m_initDAG = stol(m);
+			}
+			catch (...)
+			{
+				cerr << "Bad " << arg << " option: " << m << endl;
+				BOOST_THROW_EXCEPTION(BadArgument());
+			}
+		}
 		/*
 		else if (arg == "--current-block" && i + 1 < argc)
 			m_currentBlock = stol(argv[++i]);
@@ -551,6 +565,10 @@ public:
 
 	void execute()
 	{
+		if (mode == OperationMode::DAGInit) {
+			doInitDAG(m_initDAG);
+		}
+
 		if (m_shouldListDevices)
 		{
 #if ETH_ETHASHCL || !ETH_TRUE
@@ -1210,6 +1228,8 @@ private:
 		}
 	}
 #endif
+	/// DAG initialisation param.
+	unsigned m_initDAG = 0;
 
 	/// Operating mode.
 	OperationMode mode;
